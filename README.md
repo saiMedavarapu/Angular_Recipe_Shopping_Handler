@@ -2,7 +2,7 @@
 This project lets the user to add recipes and list of items to the shopping list.
 # Application Structure:
 * Header
-  --header.component.ts
+  * header.component.ts
 * Recipes
   * Recipe-detail
     * Recipe-detail.component
@@ -22,6 +22,10 @@ This project lets the user to add recipes and list of items to the shopping list
   * ShoppinglistEdit
       * shoppinglistEdit.component
   * ShoopingList.component
+  * shoppingList.service
+* app.module
+* app.component
+* app-routing.module
   
   # NOTE:
   The documentation does not cover contents like creating components, data bindging etc. Please understand the use of @Input and @ Output decoraters for the communication between components and data binding before going through.
@@ -168,3 +172,39 @@ addIngredients(ingredients: Ingredient[]) {
     this.ingredients.push(...ingredients);//Spread operator - allows to convert array of elements to list of elements.
     this.ingredientsChanged.next(this.ingredients.slice());
   }
+```
+# Adding routing using Angular router.
+
+From Header component when clicked it should take to respective components. App-routing module is created with paths to different components. This module should be exported and javascript object of type Routes should be added to imports array in the @NgModule.
+
+* For marking the active links. Use routerLinkActive in HTML file.
+* For the child routes in the edit component.
+
+``` typescript
+const appRoutes: Routes = [
+  { path: '', redirectTo: '/recipes', pathMatch: 'full' },//If nothing.
+  {
+    path: 'recipes',
+    component: RecipesComponent,
+    children: [
+      { path: '', component: RecipeStartComponent },
+      { path: 'new', component: RecipeEditComponent },
+      {
+        path: ':id',
+        component: RecipeDetailComponent
+      },
+      {
+        path: ':id/edit',
+        component: RecipeEditComponent
+      }
+    ]
+  },
+  { path: 'shopping-list', component: ShoppingListComponent }//For shopping list component.
+];
+
+@NgModule({
+  imports: [RouterModule.forRoot(appRoutes)], //Configuring it
+  exports: [RouterModule] //Addding it to exports array.
+})
+export class AppRoutingModule {}
+```
