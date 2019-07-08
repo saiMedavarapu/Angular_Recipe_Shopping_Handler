@@ -1,27 +1,170 @@
 # Recipe Handler
+This project lets the user to add recipes and list of items to the shopping list.
+# Application Structure:
+* Header
+  --header.component.ts
+* Recipes
+  * Recipe-detail
+    * Recipe-detail.component
+  * Recipe-list
+     * recipe-list component
+  * Recipe-edit  
+      * recipe-edit component
+  * recipe-start
+    * recipe-start component
+  * recipeModel
+  * recipes.component
+  * recipe.service
+* Shared
+  * ingredientModel
+  * Dropdown.directive
+* Shoppping-list
+  * ShoppinglistEdit
+      * shoppinglistEdit.component
+  * ShoopingList.component
+  
+  # NOTE:
+  The documentation does not cover contents like creating components, data bindging etc. Please understand the use of @Input and @ Output decoraters for the communication between components and data binding before going through.
+  
+  # DropDown Directive
+  This is for the manage button to manage the recipe arrow dropdown.
+  ``` typescript
+      @Directive({
+      selector: '[appDropdown]'
+    })
+    export class DropdownDirective {
+      @HostBinding('class.open') isOpen = false;//Dynamically attach or detach CSS class
+     
+      @HostListener('click') toggleOpen() { //Since I want to toggle it upon clicking it.
+        this.isOpen = !this.isOpen;
+      }
+    }
+* To be able to use it added it in the app module.
+* Since this is a shared directive. This is used in recipe component and header component by using the selector in div.
+  ``` HTML
+    <div
+      class="btn-group"
+      appDropdown>//This is where we will use that directive. Please refer recipe component to see it.
+      <button
+        type="button"
+        class="btn btn-primary dropdown-toggle">
+        Manage Recipe <span class="caret"></span>
+      </button>
+      <ul>
+        some elements in this will be dropped down.
+      </ul>
+   ```
+# Recipe service
 
-This project was generated with [Angular CLI](https://github.com/angular/angular-cli) version 6.0.0.
+Servies use singleton design pattern which can be injected into components using dependency injection.
+Here, Recipe service is created which will be injected into recipe component and shopping list component and used on demand.
 
-## Development server
+  ``` typescript
+    @Injectable()
+export class RecipeService {
+  recipesChanged = new Subject<Recipe[]>();
+  
+  private recipes: Recipe[] = [];
 
-Run `ng serve` for a dev server. Navigate to `http://localhost:4200/`. The app will automatically reload if you change any of the source files.
+  constructor(private slService: ShoppingListService) {}
 
-## Code scaffolding
+  setRecipes(recipes: Recipe[]) {
+    this.recipes = recipes;
+    this.recipesChanged.next(this.recipes.slice());
+  }
 
-Run `ng generate component component-name` to generate a new component. You can also use `ng generate directive|pipe|service|class|guard|interface|enum|module`.
+  getRecipes() {
+    return this.recipes.slice(); //slice returns the exact copy of the private array.
+  }
 
-## Build
+  getRecipe(index: number) { //get recipe by id
+    return this.recipes[index];
+  }
 
-Run `ng build` to build the project. The build artifacts will be stored in the `dist/` directory. Use the `--prod` flag for a production build.
+  addIngredientsToShoppingList(ingredients: Ingredient[]) {
+    this.slService.addIngredients(ingredients);
+  }
 
-## Running unit tests
+  addRecipe(recipe: Recipe) {
+    this.recipes.push(recipe);
+    this.recipesChanged.next(this.recipes.slice());
+  }
 
-Run `ng test` to execute the unit tests via [Karma](https://karma-runner.github.io).
+  updateRecipe(index: number, newRecipe: Recipe) {
+    this.recipes[index] = newRecipe;
+    this.recipesChanged.next(this.recipes.slice());
+  }
 
-## Running end-to-end tests
+  deleteRecipe(index: number) {
+    this.recipes.splice(index, 1);
+    this.recipesChanged.next(this.recipes.slice());
+  }
+}
+```
+## Using Serivce for the cross component communication:
 
-Run `ng e2e` to execute the end-to-end tests via [Protractor](http://www.protractortest.org/).
+* The recipe service is in recipe component. this service can be used in recipe-list component by cross component communication as below
 
-## Further help
+``` typescript
+this.subscription = this.recipeService.recipesChanged
+      .subscribe(
+        (recipes: Recipe[]) => {
+          this.recipes = recipes;
+        }
+      );
+    this.recipes = this.recipeService.getRecipes();
+```
+# Shopping-list Service:
 
-To get more help on the Angular CLI use `ng help` or go check out the [Angular CLI README](https://github.com/angular/angular-cli/blob/master/README.md).
+* This service lets us add, delete and update ingredients.
+
+``` typescript
+export class ShoppingListService {
+  ingredientsChanged = new Subject<Ingredient[]>();//This is used to emit the updated elements added to the list.
+  startedEditing = new Subject<number>();
+  private ingredients: Ingredient[] = [
+    new Ingredient('Apples', 5),
+    new Ingredient('Tomatoes', 10),
+  ];
+
+  getIngredients() {
+    return this.ingredients.slice();
+  }
+
+  getIngredient(index: number) {
+    return this.ingredients[index];
+  }
+
+  addIngredient(ingredient: Ingredient) {
+    this.ingredients.push(ingredient);//This only returns the unadded copy 
+    this.ingredientsChanged.next(this.ingredients.slice());//This emits the changed and returns them.
+  }
+
+  addIngredients(ingredients: Ingredient[]) {
+    this.ingredients.push(...ingredients);
+    this.ingredientsChanged.next(this.ingredients.slice());
+  }
+
+  updateIngredient(index: number, newIngredient: Ingredient) {
+    this.ingredients[index] = newIngredient;
+    this.ingredientsChanged.next(this.ingredients.slice());
+  }
+
+  deleteIngredient(index: number) {
+    this.ingredients.splice(index, 1);
+    this.ingredientsChanged.next(this.ingredients.slice());
+  }
+}
+```
+## Passing ingredients from recipes to shopping list via service:
+* In the manage button of recipe component, if you want to add a recipe to the shopping list. This calls an onclick listener to a function which calls the recipe service which has access to the shopping list service then it adds to that shopping list.
+``` typscript
+//In the recipe edit component.
+onAddToShoppingList() {
+    this.recipeService.addIngredientsToShoppingList(this.recipe.ingredients);
+  }
+//In the Shopping list service.
+addIngredients(ingredients: Ingredient[]) {
+    this.ingredients.push(...ingredients);//Spread operator - allows to convert array of elements to list of elements.
+    this.ingredientsChanged.next(this.ingredients.slice());
+  }
