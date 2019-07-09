@@ -26,6 +26,10 @@ This project lets the user to add recipes and list of items to the shopping list
 * app.module
 * app.component
 * app-routing.module
+* Auth
+ * authcomponent
+   * auth.service
+   * auth-interceptor.service.
   
   # NOTE:
   The documentation does not cover contents like creating components, data bindging etc. Please understand the use of @Input and @ Output decoraters for the communication between components and data binding before going through.
@@ -208,3 +212,72 @@ const appRoutes: Routes = [
 })
 export class AppRoutingModule {}
 ```
+# Authentication using Firebase:
+Under the auth folder. There is a component auth component. which has a form for signup and signIn.
+Firebase auth API documentation can be found [here](https://firebase.google.com/docs/reference/rest/auth)
+In response types we can see that it retruns a token. Which can be implemented in auth.service
+
+* Response that we get is this:
+
+``` typescript
+export interface AuthResponseData {
+  kind: string;
+  idToken: string;
+  email: string;
+  refreshToken: string;
+  expiresIn: string;
+  localId: string;
+  registered?: boolean;
+}
+```
+Inside the auth-service. signup method can be created which calls a hhtp.post to fire which returns an idToken.
+``` typescript
+signup(email: string, password: string) {
+    return this.http
+      .post<AuthResponseData>(//Returns a response of type authservice.
+        'https://www.googleapis.com/identitytoolkit/v3/relyingparty/signupNewUser?key=AIzaSyDb0xTaRAoxyCgvaDF3kk5VYOsTwB_3o7Y',
+        {
+          email: email,
+          password: password,
+          returnSecureToken: true
+        }
+      }
+```
+* For Login
+``` typescript
+ login(email: string, password: string) {
+    return this.http
+      .post<AuthResponseData>(
+        'https://www.googleapis.com/identitytoolkit/v3/relyingparty/verifyPassword?key=AIzaSyDb0xTaRAoxyCgvaDF3kk5VYOsTwB_3o7Y',
+        {
+          email: email,
+          password: password,
+          returnSecureToken: true
+        }
+      )
+```
+* In the auth-component 
+``` typescript
+ let authObs: Observable<AuthResponseData>;//This deals with the subsrciption to the auth-service.
+
+    this.isLoading = true;
+
+    if (this.isLoginMode) {
+      authObs = this.authService.login(email, password);
+    } else {
+      authObs = this.authService.signup(email, password);
+    }
+
+    authObs.subscribe(
+      resData => {
+        console.log(resData);
+        this.isLoading = false;
+        this.router.navigate(['/recipes']);
+      },
+      errorMessage => {
+        console.log(errorMessage);
+        this.error = errorMessage;
+        this.isLoading = false;
+      }
+    );
+ ```
